@@ -4,6 +4,7 @@ import { MongoClient } from "mongodb";
 import { DBWorker } from "./workers/db-worker/db-worker";
 import { Series } from "danfojs-node";
 import { ArrayType1D } from "danfojs-node/dist/danfojs-base/shared/types";
+import { SignalWorker } from "./workers/signal-worker/signal-worker";
 
 const DBNAME = "signals";
 
@@ -22,6 +23,7 @@ const url = "mongodb://mongo:27017";
 const mongo_client = new MongoClient(url);
 
 const dbWorker = new DBWorker("signals");
+const signalWorker = new SignalWorker();
 
 async function delay(ms) {
   // return await for better async stack trace support in case of errors.
@@ -113,27 +115,27 @@ const readSignalsQueue = () => {
     "signals",
     async function (msg) {
       const msgParsed = JSON.parse(msg.content.toString());
+      // console.log("MMMM", msgParsed);
 
       const { pair, timeframe, time_, close, sma, macd } = msgParsed;
-      console.log("MSG", pair, timeframe);
       if (time_.length < macd.output_cut) return;
-      const lastUpdate = new Date(time_[time_.length - 1]);
-      const isMacdSignal = (await verifyMacdSignal(time_, macd, 1)).length > 0;
-      const isSmaSignal = await verifySmaSignal(close, sma);
+      // const lastUpdate = new Date(time_[time_.length - 1]);
 
-      // if (pair === "RNDRBTC") {
-      //   console.log("close", close[close.length - 1]);
-      //   console.log("sma", sma[sma.length - 1]);
-      //   console.log(close[close.length - 1] > sma[sma.length - 1]);
+      const macdSignalIndexes = await signalWorker.getMacdSignalIndexes(
+        macd.macd_histogram,
+        macd.output_cut
+      );
 
-      //   console.log({ isSmaSignal });
-      // }
-      const signals = {
-        lastUpdate,
-        macd: isMacdSignal,
-        sma: isSmaSignal
-      };
-      await dbWorker.saveSignals(timeframe, pair, signals);
+      console.log(macdSignalIndexes);
+
+      // const isMacdSignal = (await verifyMacdSignal(time_, macd, 1)).length > 0;
+      // const isSmaSignal = await verifySmaSignal(close, sma);
+      // const signals = {
+      //   lastUpdate,
+      //   macd: isMacdSignal,
+      //   sma: isSmaSignal
+      // };
+      // await dbWorker.saveSignals(timeframe, pair, signals);
     },
     {
       noAck: true
