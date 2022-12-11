@@ -119,23 +119,24 @@ const readSignalsQueue = () => {
 
       const { pair, timeframe, time_, close, sma, macd } = msgParsed;
       if (time_.length < macd.output_cut) return;
-      // const lastUpdate = new Date(time_[time_.length - 1]);
+      const lastUpdate = new Date(time_[time_.length - 1]);
 
-      const macdSignalIndexes = await signalWorker.getMacdSignalIndexes(
-        macd.macd_histogram,
-        macd.output_cut
-      );
+      const macdSignalIndexes = await signalWorker.getMacdSignalIndexes(macd);
 
-      console.log(macdSignalIndexes);
-
+      const smaSignal = await signalWorker.getPriceAboveSmaIndexes(sma, close);
       // const isMacdSignal = (await verifyMacdSignal(time_, macd, 1)).length > 0;
       // const isSmaSignal = await verifySmaSignal(close, sma);
-      // const signals = {
-      //   lastUpdate,
-      //   macd: isMacdSignal,
-      //   sma: isSmaSignal
-      // };
-      // await dbWorker.saveSignals(timeframe, pair, signals);
+      const signals = {
+        time_,
+        close,
+        lastUpdate,
+        macdUp: macdSignalIndexes.upCross,
+        macdDown: macdSignalIndexes.downCross,
+        sma: smaSignal
+      };
+      console.log("Saving signals", timeframe, pair, signals);
+
+      await dbWorker.saveSignals(timeframe, pair, signals);
     },
     {
       noAck: true
